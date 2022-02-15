@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.azure.spring.cloud.feature.manager.entities.ImpressionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -71,7 +72,18 @@ public class FeatureManager extends HashMap<String, Object> {
      * @throws FilterNotFoundException file not found
      */
     public Mono<Boolean> isEnabledAsync(String feature) throws FilterNotFoundException {
-        return Mono.just(checkFeatures(feature));
+        boolean result = checkFeatures(feature);
+
+        try {
+            ImpressionListener impressionListener = (ImpressionListener) context.getBean(ImpressionListener.BEAN_NAME);
+            if (impressionListener != null) {
+                impressionListener.handleImpression(feature, result);
+            }
+        } catch (NoSuchBeanDefinitionException e) {
+            // No impression sender -- just ignore.
+        }
+
+        return Mono.just(result);
     }
 
     private boolean checkFeatures(String feature) throws FilterNotFoundException {
